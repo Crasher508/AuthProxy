@@ -1,0 +1,14 @@
+{
+  "storage": {
+    "secret_key": "",
+    "file_name": ".account"
+  },
+  "proxy": {
+    "hostname": "0.0.0.0",
+    "port": 19132
+  },
+  "server": {
+    "address": "noteland.de",
+    "port": 19132
+  }
+}
