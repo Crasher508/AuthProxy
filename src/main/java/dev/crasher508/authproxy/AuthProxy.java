@@ -31,7 +31,7 @@ public class AuthProxy {
         }
 
         Configuration configuration = Configuration.load("config.json");
-        new AccountManager(configuration.getStorageSecretKey(), configuration.getStorageSecretKey());
+        new AccountManager(configuration.getStorageSecretKey(), configuration.getStorageAddress());
 
         InetSocketAddress bindAddress = new InetSocketAddress(configuration.getProxyAddress(), configuration.getProxyPort());
         ProxyServer proxyServer = new ProxyServer(bindAddress, configuration.getTargetAddress(), configuration.getTargetPort(),
