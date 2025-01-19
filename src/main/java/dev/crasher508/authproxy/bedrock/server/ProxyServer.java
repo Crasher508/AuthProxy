@@ -40,11 +40,15 @@ public class ProxyServer {
     private final String downstreamAddress;
     @Getter
     private final int downstreamPort;
+    private final String motd;
+    private final String subMotd;
 
-    public ProxyServer(InetSocketAddress address, String downstreamAddress, int downstreamPort) {
+    public ProxyServer(InetSocketAddress address, String downstreamAddress, int downstreamPort, String motd, String subMotd) {
         this.bindAddress = address;
         this.downstreamAddress = downstreamAddress;
         this.downstreamPort = downstreamPort;
+        this.motd = motd;
+        this.subMotd = subMotd;
         instance = this;
     }
 
@@ -65,7 +69,9 @@ public class ProxyServer {
         }
 
         ADVERTISEMENT.ipv4Port(bindAddress.getPort())
-                .ipv6Port(bindAddress.getPort());
+                .ipv6Port(bindAddress.getPort())
+                .motd(motd)
+                .subMotd(subMotd);
         new ServerBootstrap()
                 .group(new NioEventLoopGroup())
                 .channelFactory(RakChannelFactory.server(NioDatagramChannel.class))

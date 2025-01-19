@@ -8,16 +8,12 @@ package dev.crasher508.authproxy;
 import com.google.gson.JsonObject;
 import dev.crasher508.authproxy.account.AccountManager;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
-import dev.crasher508.authproxy.utils.Console;
-import dev.crasher508.authproxy.utils.FileManager;
-import dev.crasher508.authproxy.utils.Json;
-import dev.crasher508.authproxy.utils.TextFormat;
+import dev.crasher508.authproxy.utils.*;
 import dev.crasher508.authproxy.utils.threads.ConsoleThread;
 import net.lenni0451.commons.httpclient.HttpClient;
 import net.raphimc.minecraftauth.MinecraftAuth;
 import net.raphimc.minecraftauth.step.bedrock.session.StepFullBedrockSession;
 import net.raphimc.minecraftauth.step.msa.StepMsaDeviceCode;
-import org.jose4j.json.internal.json_simple.JSONObject;
 
 import java.io.File;
 import java.net.InetSocketAddress;
@@ -34,21 +30,12 @@ public class AuthProxy {
             FileManager.writeToFile("config.json", contents);
         }
 
-        JSONObject config = Json.parseJSONObject(FileManager.getFileContents("config.json"));
+        Configuration configuration = Configuration.load("config.json");
+        new AccountManager(configuration.getStorageSecretKey(), configuration.getStorageSecretKey());
 
-        JSONObject storageConfig = Json.parseJSONObjectFromObject(config, "storage");
-        String secretKey = Json.parseStringFromJSONObject(storageConfig, "secret_key");
-        String fileName = Json.parseStringFromJSONObject(storageConfig, "file_name");
-        new AccountManager(secretKey, fileName);
-
-        JSONObject proxyConfig = Json.parseJSONObjectFromObject(config, "proxy");
-        String hostname = Json.parseStringFromJSONObject(proxyConfig, "hostname");
-        long port = Json.parseLongFromJSONObject(proxyConfig, "port");
-        JSONObject serverConfig = Json.parseJSONObjectFromObject(config, "server");
-        String downstreamAddress = Json.parseStringFromJSONObject(serverConfig, "address");
-        int downstreamPort = Math.round(Json.parseLongFromJSONObject(serverConfig, "port"));
-        InetSocketAddress bindAddress = new InetSocketAddress(hostname, Math.round(port));
-        ProxyServer proxyServer = new ProxyServer(bindAddress, downstreamAddress, downstreamPort);
+        InetSocketAddress bindAddress = new InetSocketAddress(configuration.getProxyAddress(), configuration.getProxyPort());
+        ProxyServer proxyServer = new ProxyServer(bindAddress, configuration.getTargetAddress(), configuration.getTargetPort(),
+                configuration.getProxyMotd(), configuration.getProxySubMotd());
         proxyServer.start();
         Console.writeLn("Proxy server Listening on " + bindAddress);
 

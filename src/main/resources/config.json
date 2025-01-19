@@ -5,7 +5,9 @@
   },
   "proxy": {
     "hostname": "0.0.0.0",
-    "port": 19132
+    "port": 19132,
+    "motd": "NoteLand Auth Proxy",
+    "sub_motd": "Bedrock Proxy"
   },
   "server": {
     "address": "noteland.de",
