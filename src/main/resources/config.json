@@ -1,5 +1,6 @@
 {
   "storage": {
+    "provider": "file",
     "secret_key": "",
     "file_name": ".account"
   },

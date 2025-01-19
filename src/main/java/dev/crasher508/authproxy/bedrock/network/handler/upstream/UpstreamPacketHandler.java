@@ -6,7 +6,7 @@
 package dev.crasher508.authproxy.bedrock.network.handler.upstream;
 
 import com.google.gson.JsonParser;
-import dev.crasher508.authproxy.account.AccountManager;
+import dev.crasher508.authproxy.AuthProxy;
 import dev.crasher508.authproxy.bedrock.player.PlayerInfo;
 import dev.crasher508.authproxy.bedrock.player.ProxiedPlayer;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
@@ -108,7 +108,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             Console.writeLn(TextFormat.RED + exception.getMessage());
             return PacketSignal.HANDLED;
         }
-        if (AccountManager.getInstance().getAccountByName(playerInfo.username()) == null) {
+        if (AuthProxy.getDataProvider().getAccountByName(playerInfo.username()) == null) {
             player.getSession().disconnect("Du bist nicht angemeldet!\nBitte registriere dich unter dem Namen " + playerInfo.username());
         }
         return PacketSignal.HANDLED;

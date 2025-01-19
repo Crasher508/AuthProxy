@@ -8,6 +8,7 @@ import org.jose4j.json.internal.json_simple.JSONObject;
 @AllArgsConstructor
 public class Configuration {
 
+    private final String storageProvider;
     private final String storageSecretKey;
     private final String storageAddress;
 
@@ -23,6 +24,7 @@ public class Configuration {
         JSONObject config = Json.parseJSONObject(FileManager.getFileContents(configFileName));
 
         JSONObject storageConfig = Json.parseJSONObjectFromObject(config, "storage");
+        String provider = Json.parseStringFromJSONObject(storageConfig, "provider");
         String secretKey = Json.parseStringFromJSONObject(storageConfig, "secret_key");
         String fileName = Json.parseStringFromJSONObject(storageConfig, "file_name");
 
@@ -36,6 +38,6 @@ public class Configuration {
         String downstreamAddress = Json.parseStringFromJSONObject(serverConfig, "address");
         int downstreamPort = Math.round(Json.parseLongFromJSONObject(serverConfig, "port"));
 
-        return new Configuration(secretKey, fileName, hostname, port, motd, sub_motd, downstreamAddress, downstreamPort);
+        return new Configuration(provider, secretKey, fileName, hostname, port, motd, sub_motd, downstreamAddress, downstreamPort);
     }
 }

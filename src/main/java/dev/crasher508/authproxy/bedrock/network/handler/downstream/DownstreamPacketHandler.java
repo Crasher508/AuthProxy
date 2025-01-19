@@ -6,7 +6,7 @@
 package dev.crasher508.authproxy.bedrock.network.handler.downstream;
 
 import com.google.gson.JsonObject;
-import dev.crasher508.authproxy.account.AccountManager;
+import dev.crasher508.authproxy.AuthProxy;
 import dev.crasher508.authproxy.bedrock.network.registry.FakeDefinitionRegistry;
 import dev.crasher508.authproxy.bedrock.player.ProxiedPlayer;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
@@ -64,10 +64,10 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
             player.getDownstreamSession().sendPacketImmediately(player.getLoginPacket());
         } catch (Exception ignored) {
             Console.writeLn(TextFormat.RED + "Failed to send packet immediately: Try to refresh bedrock session of " + javaPlayerName);
-            JsonObject bedrockSessionJsonObject = AccountManager.getInstance().getAccountByName(javaPlayerName);
+            JsonObject bedrockSessionJsonObject = AuthProxy.getDataProvider().getAccountByName(javaPlayerName);
             StepFullBedrockSession.FullBedrockSession bedrockSession = MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.fromJson(bedrockSessionJsonObject);
             StepFullBedrockSession.FullBedrockSession refreshedBedrockSession = MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.refresh(MinecraftAuth.createHttpClient(), bedrockSession);
-            AccountManager.getInstance().saveAccount(javaPlayerName, MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.toJson(refreshedBedrockSession));
+            AuthProxy.getDataProvider().saveAccount(javaPlayerName, MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.toJson(refreshedBedrockSession));
             player.getDownstreamSession().sendPacketImmediately(player.getLoginPacket());
         }
 

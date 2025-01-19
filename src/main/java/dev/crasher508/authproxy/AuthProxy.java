@@ -6,10 +6,12 @@
 package dev.crasher508.authproxy;
 
 import com.google.gson.JsonObject;
-import dev.crasher508.authproxy.account.AccountManager;
+import dev.crasher508.authproxy.accounts.AbstractDataProvider;
+import dev.crasher508.authproxy.accounts.FileDataProvider;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
 import dev.crasher508.authproxy.utils.*;
 import dev.crasher508.authproxy.utils.threads.ConsoleThread;
+import lombok.Getter;
 import net.lenni0451.commons.httpclient.HttpClient;
 import net.raphimc.minecraftauth.MinecraftAuth;
 import net.raphimc.minecraftauth.step.bedrock.session.StepFullBedrockSession;
@@ -19,6 +21,9 @@ import java.io.File;
 import java.net.InetSocketAddress;
 
 public class AuthProxy {
+
+    @Getter
+    private static AbstractDataProvider dataProvider;
 
     public static void main(String[] args) {
         long startTime = (System.currentTimeMillis() / 1000L);
@@ -31,7 +36,14 @@ public class AuthProxy {
         }
 
         Configuration configuration = Configuration.load("config.json");
-        new AccountManager(configuration.getStorageSecretKey(), configuration.getStorageAddress());
+        switch (configuration.getStorageProvider()) {
+            case "mysql":
+            case "mariadb":
+                throw new RuntimeException("MySQL is not implemented yet");
+            default:
+                dataProvider = new FileDataProvider(configuration.getStorageAddress(), configuration.getStorageSecretKey());
+                break;
+        }
 
         InetSocketAddress bindAddress = new InetSocketAddress(configuration.getProxyAddress(), configuration.getProxyPort());
         ProxyServer proxyServer = new ProxyServer(bindAddress, configuration.getTargetAddress(), configuration.getTargetPort(),
@@ -57,7 +69,7 @@ public class AuthProxy {
             Console.writeLn("Username: " + bedrockSession.getMcChain().getDisplayName());
             Console.writeLn("Xuid: " + bedrockSession.getMcChain().getXuid());
             JsonObject bedrockSessionJsonObject = MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.toJson(bedrockSession);
-            if (!AccountManager.getInstance().saveAccount(name, bedrockSessionJsonObject)) {
+            if (!AuthProxy.getDataProvider().saveAccount(name, bedrockSessionJsonObject)) {
                 Console.writeLn(TextFormat.RED + "Failed to save account!");
             }
         } catch (Exception exception) {

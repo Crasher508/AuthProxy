@@ -1,7 +1,7 @@
 package dev.crasher508.authproxy.bedrock.player;
 
 import com.google.gson.*;
-import dev.crasher508.authproxy.account.AccountManager;
+import dev.crasher508.authproxy.AuthProxy;
 import dev.crasher508.authproxy.bedrock.network.handler.downstream.DownstreamPacketHandler;
 import dev.crasher508.authproxy.bedrock.network.session.ProxyClientSession;
 import dev.crasher508.authproxy.bedrock.network.session.ProxyServerSession;
@@ -148,7 +148,7 @@ public class ProxiedPlayer {
     public LoginPacket getLoginPacket() {
         LoginPacket loginPacket = new LoginPacket();
         String javaPlayerName = mainPlayerInfo.username();
-        JsonObject bedrockSessionJsonObject = AccountManager.getInstance().getAccountByName(javaPlayerName);
+        JsonObject bedrockSessionJsonObject = AuthProxy.getDataProvider().getAccountByName(javaPlayerName);
         StepFullBedrockSession.FullBedrockSession bedrockSession = MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.fromJson(bedrockSessionJsonObject);
 
         this.keyPair = new KeyPair(bedrockSession.getMcChain().getPublicKey(), bedrockSession.getMcChain().getPrivateKey());
