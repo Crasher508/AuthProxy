@@ -11,6 +11,8 @@ import dev.crasher508.authproxy.accounts.FileDataProvider;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
 import dev.crasher508.authproxy.utils.*;
 import dev.crasher508.authproxy.utils.threads.ConsoleThread;
+import dev.crasher508.authproxy.utils.threads.PlayerAuthThread;
+import io.netty.util.ResourceLeakDetector;
 import lombok.Getter;
 import net.lenni0451.commons.httpclient.HttpClient;
 import net.raphimc.minecraftauth.MinecraftAuth;
@@ -19,13 +21,18 @@ import net.raphimc.minecraftauth.step.msa.StepMsaDeviceCode;
 
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 
 public class AuthProxy {
 
     @Getter
     private static AbstractDataProvider dataProvider;
 
+    @Getter
+    public static HashMap<String, PlayerAuthThread> authThreads = new HashMap<>();
+
     public static void main(String[] args) {
+        ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED);
         long startTime = (System.currentTimeMillis() / 1000L);
         Console.writeLn("Starting Minecraft Bedrock AuthProxy...");
 

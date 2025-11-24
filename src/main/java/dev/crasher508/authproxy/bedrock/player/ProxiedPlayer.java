@@ -17,10 +17,13 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import net.raphimc.minecraftauth.MinecraftAuth;
+import net.raphimc.minecraftauth.step.bedrock.StepMCChain;
 import net.raphimc.minecraftauth.step.bedrock.session.StepFullBedrockSession;
 import org.cloudburstmc.netty.channel.raknet.RakChannelFactory;
 import org.cloudburstmc.netty.channel.raknet.config.RakChannelOption;
 import org.cloudburstmc.protocol.bedrock.BedrockPeer;
+import org.cloudburstmc.protocol.bedrock.data.auth.AuthType;
+import org.cloudburstmc.protocol.bedrock.data.auth.CertificateChainPayload;
 import org.cloudburstmc.protocol.bedrock.netty.initializer.BedrockChannelInitializer;
 import org.cloudburstmc.protocol.bedrock.packet.*;
 import org.jose4j.json.internal.json_simple.JSONObject;
@@ -114,7 +117,7 @@ public class ProxiedPlayer {
         }
     }
 
-    public void disconnect(String reason) {
+    public void disconnect(CharSequence reason) {
         if (this.session.isConnected()) {
             this.session.disconnect(reason);
         }
@@ -129,7 +132,6 @@ public class ProxiedPlayer {
         pk.setPlatformChatId("");
         pk.setXuid("");
         pk.setSourceName("");
-        pk.setNeedsTranslation(false);
         pk.setMessage(message);
         this.session.sendPacket(pk);
     }
@@ -150,16 +152,16 @@ public class ProxiedPlayer {
         String javaPlayerName = mainPlayerInfo.username();
         JsonObject bedrockSessionJsonObject = AuthProxy.getDataProvider().getAccountByName(javaPlayerName);
         StepFullBedrockSession.FullBedrockSession bedrockSession = MinecraftAuth.BEDROCK_DEVICE_CODE_LOGIN.fromJson(bedrockSessionJsonObject);
+        StepMCChain.MCChain originalChain = bedrockSession.getMcChain();
+        this.keyPair = new KeyPair(originalChain.getPublicKey(), originalChain.getPrivateKey());
+        final String encodedPublicKey = Base64.getEncoder().encodeToString(originalChain.getPublicKey().getEncoded());
 
-        this.keyPair = new KeyPair(bedrockSession.getMcChain().getPublicKey(), bedrockSession.getMcChain().getPrivateKey());
-        final String encodedPublicKey = Base64.getEncoder().encodeToString(bedrockSession.getMcChain().getPublicKey().getEncoded());
-
-        final Jws<Claims> mojangJwt = Jwts.parser().clockSkewSeconds(60).verifyWith(MOJANG_PUBLIC_KEY).json(GSON_DESERIALIZER).build().parseSignedClaims(bedrockSession.getMcChain().getMojangJwt());
+        final Jws<Claims> mojangJwt = Jwts.parser().clockSkewSeconds(60).verifyWith(MOJANG_PUBLIC_KEY).json(GSON_DESERIALIZER).build().parseSignedClaims(originalChain.getMojangJwt());
         final ECPublicKey mojangJwtPublicKey = publicKeyFromBase64(mojangJwt.getPayload().get("identityPublicKey", String.class));
-        final Jws<Claims> identityJwt = Jwts.parser().clockSkewSeconds(60).verifyWith(mojangJwtPublicKey).build().parseSignedClaims(bedrockSession.getMcChain().getIdentityJwt());
+        final Jws<Claims> identityJwt = Jwts.parser().clockSkewSeconds(60).verifyWith(mojangJwtPublicKey).build().parseSignedClaims(originalChain.getIdentityJwt());
 
         final String selfSignedJwt = Jwts.builder()
-                .signWith(bedrockSession.getMcChain().getPrivateKey(), Jwts.SIG.ES384)
+                .signWith(originalChain.getPrivateKey(), Jwts.SIG.ES384)
                 .header().add("x5u", encodedPublicKey).and()
                 .claim("certificateAuthority", true)
                 .claim("identityPublicKey", mojangJwt.getHeader().get("x5u"))
@@ -173,9 +175,11 @@ public class ProxiedPlayer {
                 (String) extraData.get("XUID"),
                 (String) extraData.get("identity")
         );
-        loginPacket.getChain().add(selfSignedJwt);
-        loginPacket.getChain().add(bedrockSession.getMcChain().getMojangJwt());
-        loginPacket.getChain().add(bedrockSession.getMcChain().getIdentityJwt());
+        List<String> chain = new ArrayList<>();
+        chain.add(selfSignedJwt);
+        chain.add(originalChain.getMojangJwt());
+        chain.add(originalChain.getIdentityJwt());
+        loginPacket.setAuthPayload(new CertificateChainPayload(chain, AuthType.FULL));
         if (skinData == null) {
             skinData = new JSONObject();
         }
@@ -186,15 +190,15 @@ public class ProxiedPlayer {
         skinData.put("OverrideSkin", 1);
         skinData.put("PlayFabId", bedrockSession.getPlayFabToken().getPlayFabId());
         skinData.put("CompatibleWithClientSideChunkGen", false);
-        skinData.put("DeviceId", bedrockSession.getMcChain().getXblXsts().getInitialXblSession().getXblDeviceToken().getDeviceId());
+        skinData.put("DeviceId", originalChain.getXblXsts().getInitialXblSession().getXblDeviceToken().getDeviceId());
         Map<String, Object> skinDataMap = new HashMap<>();
         skinData.keySet().forEach((key) -> skinDataMap.put((String) key, skinData.get(key)));
         final String skinDataJwt = Jwts.builder()
-                .signWith(bedrockSession.getMcChain().getPrivateKey(), Jwts.SIG.ES384)
+                .signWith(originalChain.getPrivateKey(), Jwts.SIG.ES384)
                 .header().add("x5u", encodedPublicKey).and()
                 .claims(skinDataMap)
                 .compact();
-        loginPacket.setExtra(skinDataJwt);
+        loginPacket.setClientJwt(skinDataJwt);
         loginPacket.setProtocolVersion(ProxyServer.BEDROCK_CODEC.getProtocolVersion());
         return loginPacket;
     }

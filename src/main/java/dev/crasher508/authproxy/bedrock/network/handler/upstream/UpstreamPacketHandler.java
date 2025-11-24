@@ -11,6 +11,7 @@ import dev.crasher508.authproxy.bedrock.player.PlayerInfo;
 import dev.crasher508.authproxy.bedrock.player.ProxiedPlayer;
 import dev.crasher508.authproxy.bedrock.server.ProxyServer;
 import dev.crasher508.authproxy.utils.*;
+import dev.crasher508.authproxy.utils.threads.PlayerAuthThread;
 import org.cloudburstmc.protocol.bedrock.data.PacketCompressionAlgorithm;
 import org.cloudburstmc.protocol.bedrock.packet.*;
 import org.cloudburstmc.protocol.bedrock.util.ChainValidationResult;
@@ -33,7 +34,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
 
     @Override
     public PacketSignal handle(RequestNetworkSettingsPacket packet) {
-        if (packet.getProtocolVersion() != ProxyServer.BEDROCK_CODEC.getProtocolVersion()) {
+        /*if (packet.getProtocolVersion() != ProxyServer.BEDROCK_CODEC.getProtocolVersion()) {
             PlayStatusPacket status = new PlayStatusPacket();
             status.setStatus((packet.getProtocolVersion() > ProxyServer.BEDROCK_CODEC.getProtocolVersion() ?
                     PlayStatusPacket.Status.LOGIN_FAILED_SERVER_OLD :
@@ -42,7 +43,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             player.getSession().disconnect();
             Console.writeLn(TextFormat.RED + "[" + player.getSession().getSocketAddress() + "] <-> Upstream has disconnected due to incompatible protocol (protocol=" + packet.getProtocolVersion() + ")");
             return PacketSignal.HANDLED;
-        }
+        }*/
         NetworkSettingsPacket networkSettingsPacket = new NetworkSettingsPacket();
         networkSettingsPacket.setCompressionThreshold(1);
         networkSettingsPacket.setCompressionAlgorithm(PacketCompressionAlgorithm.ZLIB);
@@ -59,7 +60,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
     public PacketSignal handle(LoginPacket packet) {
         PlayerInfo playerInfo;
         try {
-            ChainValidationResult chain = EncryptionUtils.validateChain(packet.getChain());
+            ChainValidationResult chain = EncryptionUtils.validatePayload(packet.getAuthPayload());
             String extraDataJson = chain.rawIdentityClaims().get("extraData").toString();
             if (extraDataJson == null) {
                 throw new RuntimeException("AuthData was not found!");
@@ -71,7 +72,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             }
             ECPublicKey identityPublicKey = EncryptionUtils.parseKey(keyJson);
 
-            String clientJwt = packet.getExtra();
+            String clientJwt = packet.getClientJwt();
             JsonWebSignature verifyJws = new JsonWebSignature();
             verifyJws.setKey(identityPublicKey);
             verifyJws.setCompactSerialization(clientJwt);
@@ -109,7 +110,31 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
             return PacketSignal.HANDLED;
         }
         if (AuthProxy.getDataProvider().getAccountByName(playerInfo.username()) == null) {
-            player.getSession().disconnect("Du bist nicht angemeldet!\nBitte registriere dich unter dem Namen " + playerInfo.username());
+            if (AuthProxy.getAuthThreads().size() < 10) {
+                PlayerAuthThread playerAuthThread = AuthProxy.getAuthThreads().get(playerInfo.username());
+                if (playerAuthThread != null) {
+                    player.getSession().disconnect("§lNote§bLand\n§r§cDu bist nicht angemeldet!\nBitte melde dich an unter " + playerAuthThread.getMsaDeviceCode().getVerificationUri() + " Code: " + playerAuthThread.getMsaDeviceCode().getUserCode());
+                } else {
+                    PlayerAuthThread authThread = new PlayerAuthThread(playerInfo.username(), player.getSession());
+                    authThread.setDaemon(true);
+                    authThread.start();
+                    AuthProxy.getAuthThreads().put(playerInfo.username(), authThread);
+                    int count = 12;
+                    while ((authThread.getMsaDeviceCode() == null) && count > 1) {
+                        count -= 1;
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException exception) {
+                            Console.writeLn(TextFormat.RED + exception.getMessage());
+                        }
+                    }
+                    if (authThread.getMsaDeviceCode() == null) {
+                        player.getSession().disconnect("§lNote§bLand\n§r§cDu bist nicht angemeldet!\nBitte registriere dich unter dem Namen " + playerInfo.username());
+                    }
+                }
+            } else {
+                player.getSession().disconnect("§lNote§bLand\n§r§cDu bist nicht angemeldet!\nBitte registriere dich unter dem Namen " + playerInfo.username());
+            }
         }
         return PacketSignal.HANDLED;
     }
@@ -146,12 +171,6 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public PacketSignal handle(LevelChunkPacket packet) {
-        packet.getData().retain();
-        return PacketSignal.UNHANDLED;
-    }
-
-    @Override
     public PacketSignal handle(PacketViolationWarningPacket packet) {
         Console.writeLn(TextFormat.RED + "Packet violation warning: " + packet.getContext());
         return PacketSignal.HANDLED;
@@ -168,7 +187,7 @@ public class UpstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public void onDisconnect(String reason) {
+    public void onDisconnect(CharSequence reason) {
         Console.writeLn(TextFormat.RED + "Disconnect packet received from upstream server: " + reason);
         player.disconnect(reason);
     }

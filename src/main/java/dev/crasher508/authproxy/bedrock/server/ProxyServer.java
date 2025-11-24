@@ -18,7 +18,7 @@ import org.cloudburstmc.netty.channel.raknet.config.RakChannelOption;
 import org.cloudburstmc.protocol.bedrock.BedrockPeer;
 import org.cloudburstmc.protocol.bedrock.BedrockPong;
 import org.cloudburstmc.protocol.bedrock.codec.BedrockCodec;
-import org.cloudburstmc.protocol.bedrock.codec.v766.Bedrock_v766;
+import org.cloudburstmc.protocol.bedrock.codec.v859.Bedrock_v859;
 import org.cloudburstmc.protocol.bedrock.netty.initializer.BedrockChannelInitializer;
 
 import java.net.InetSocketAddress;
@@ -32,7 +32,7 @@ public class ProxyServer {
     @Setter
     private boolean isRunning = false;
 
-    public static final BedrockCodec BEDROCK_CODEC = Bedrock_v766.CODEC;
+    public static final BedrockCodec BEDROCK_CODEC = Bedrock_v859.CODEC.toBuilder().protocolVersion(860).build();
 
     private final InetSocketAddress bindAddress;
 

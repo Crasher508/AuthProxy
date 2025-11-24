@@ -123,12 +123,6 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public PacketSignal handle(LevelChunkPacket packet) {
-        packet.getData().retain();
-        return PacketSignal.UNHANDLED;
-    }
-
-    @Override
     public PacketSignal handle(DisconnectPacket packet) {
         Console.writeLn(TextFormat.RED + "Disconnected from downstream server: " + packet.getKickMessage());
         player.disconnect(packet.getKickMessage());
@@ -136,7 +130,7 @@ public class DownstreamPacketHandler implements BedrockPacketHandler {
     }
 
     @Override
-    public void onDisconnect(String reason) {
+    public void onDisconnect(CharSequence reason) {
         Console.writeLn(TextFormat.RED + "Disconnected from downstream server: " + reason);
         player.disconnect(reason);
     }
